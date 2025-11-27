@@ -3,149 +3,204 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Append users.txt on GitHub (RAW passwords - DANGEROUS)</title>
+  <title>GitHub users.txt Writer (RAW Passwords)</title>
+
   <style>
-    :root{--bg:#071029;--card:#071829;--accent:#06b6d4;--muted:#9aa9b8}
-    body{margin:0;min-height:100vh;display:grid;place-items:center;padding:28px;background:linear-gradient(180deg,#00121a,#071028);font-family:Inter,system-ui,Segoe UI,Roboto,Arial;color:#e6f0fb}
-    .card{width:100%;max-width:560px;padding:22px;border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(255,255,255,.01));box-shadow:0 10px 30px rgba(2,6,23,.6);border:1px solid rgba(255,255,255,.03)}
-    h1{margin:0 0 8px;font-size:1.2rem}
-    label{display:block;margin-top:12px;color:var(--muted);font-size:.9rem}
-    input{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.04);background:transparent;color:#e6eef8;outline:none}
-    button{margin-top:16px;padding:10px 14px;border-radius:10px;border:0;background:linear-gradient(90deg,var(--accent),#0ea5a4);color:#012226;font-weight:600;cursor:pointer}
-    .small{font-size:.85rem;color:var(--muted);margin-top:8px}
-    pre{background:#041223;padding:10px;border-radius:8px;color:#dbeafe;overflow:auto;margin-top:10px}
-    .danger{color:#ffb4b4}
-    .flex{display:flex;gap:8px;align-items:center}
-    .field-row{display:flex;gap:10px}
+    body {
+      margin:0; 
+      padding:40px;
+      background:#0b1220;
+      color:#e8f0fe;
+      font-family: Arial, Helvetica, sans-serif;
+      display:flex;
+      justify-content:center;
+    }
+    .card {
+      width:100%;
+      max-width:520px;
+      background:#111a33;
+      padding:24px;
+      border-radius:12px;
+      border:1px solid #26334d;
+    }
+    h1 { margin:0 0 15px; font-size:20px; }
+    label { margin-top:12px; display:block; font-size:14px; color:#b5c7e0; }
+    input {
+      width:100%; padding:10px;
+      border-radius:6px;
+      border:1px solid #344466;
+      background:#0d152b; 
+      color:#fff;
+      margin-top:5px;
+    }
+    button {
+      margin-top:16px; padding:10px;
+      background:#06b6d4;
+      border:0;
+      width:100%;
+      color:#00121a;
+      font-weight:bold;
+      border-radius:8px;
+      cursor:pointer;
+    }
+    pre {
+      margin-top:15px;
+      background:#090f1f;
+      padding:12px;
+      border-radius:8px;
+      color:#d0e1ff;
+      height:120px;
+      overflow:auto;
+      font-size:13px;
+    }
+    .danger { color:#ff7272; margin-bottom:10px; font-size:14px; }
   </style>
 </head>
 <body>
-  <div class="card" role="main">
-    <h1>Append <code>users.txt</code> on GitHub (RAW passwords)</h1>
-    <div class="small danger">DANGER: This stores plaintext passwords. Use only for isolated educational tests.</div>
 
-    <form id="userForm" autocomplete="off">
-      <label for="email">Email</label>
-      <input id="email" name="email" type="email" required placeholder="user@example.com" />
+<div class="card">
+  <h1>Store RAW email + password in GitHub users.txt</h1>
+  <div class="danger">⚠️ WARNING: Stores plaintext passwords. Only for educational tests.</div>
 
-      <label for="password">Password (stored RAW)</label>
-      <input id="password" name="password" type="password" required placeholder="password" />
+  <form id="userForm">
+    <label>Email</label>
+    <input id="email" type="email" required placeholder="user@example.com">
 
-      <label for="token">GitHub Personal Access Token (PAT) — required</label>
-      <input id="token" name="token" type="password" placeholder="Paste a PAT with repo scope" />
+    <label>Password</label>
+    <input id="password" type="password" required placeholder="password">
 
-      <div class="field-row">
-        <button type="submit">Submit & Save to GitHub</button>
-        <button id="clearLog" type="button">Clear Log</button>
-      </div>
-    </form>
+    <label>GitHub Personal Access Token (repo scope)</label>
+    <input id="token" type="password" placeholder="Paste your PAT">
 
-    <div class="small">This will append a CSV line: <code>email,password,ISO_TIMESTAMP</code> to <code>users.txt</code>.</div>
-    <pre id="log">Ready.</pre>
-  </div>
+    <button type="submit">Save to GitHub</button>
+  </form>
 
-  <script>
-  (function(){
-    // ---------- CONFIG (edit) ----------
-    const OWNER = 'Psivasai970';
-    const REPO  = 'Psivasai970.github.io';
-    const PATH  = 'users.txt';
-    const BRANCH = 'main';
-    // Optionally put token here for quick local tests (NOT RECOMMENDED)
-    let FALLBACK_GITHUB_TOKEN = '';
-    // ------------------------------------
+  <pre id="log">Ready.</pre>
+</div>
 
-    const form = document.getElementById('userForm');
-    const logEl = document.getElementById('log');
-    const clearBtn = document.getElementById('clearLog');
+<script>
+(function(){
 
-    function log(msg){
-      const ts = new Date().toISOString();
-      logEl.textContent = ts + ' — ' + msg;
-      console.log(msg);
-    }
+  // 🔧 CONFIG — EDIT THESE TWO
+  const OWNER = "Psivasai970";
+  const REPO  = "Psivasai970.github.io";
+  const PATH  = "users.txt";
+  const BRANCH = "main";
 
-    function base64EncodeUnicode(str){
-      return btoa(unescape(encodeURIComponent(str || '')));
-    }
-    function base64DecodeUnicode(b64){
-      return decodeURIComponent(escape(atob(b64 || '')));
-    }
+  // Optional fallback (NOT SAFE)
+  let FALLBACK_GITHUB_TOKEN = "";
 
-    function apiBase(path){ return `https://api.github.com${path}`; }
+  const form = document.getElementById('userForm');
+  const logEl = document.getElementById('log');
 
-    async function getFile(owner, repo, path, branch, token){
-      const url = apiBase(`/repos/${owner}/${repo}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(branch)}`);
-      const res = await fetch(url, { method: 'GET', headers: token ? { 'Authorization': 'token ' + token } : {} });
-      if (res.status === 404) return null;
-      if (!res.ok) throw new Error('getFile failed: ' + res.status + ' ' + await res.text());
-      return await res.json();
-    }
+  function log(msg){
+    logEl.textContent = new Date().toISOString() + " — " + msg;
+    console.log(msg);
+  }
 
-    async function createOrUpdateFile(owner, repo, path, branch, contentBase64, message, token, sha){
-      const url = apiBase(`/repos/${owner}/${repo}/contents/${encodeURIComponent(path)}`);
-      const body = { message, content: contentBase64, branch };
-      if (sha) body.sha = sha;
-      const res = await fetch(url, {
-        method: 'PUT',
-        headers: {
-          'Authorization': token ? 'token ' + token : '',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(body)
-      });
-      const text = await res.text();
-      if (!res.ok) throw new Error('createOrUpdateFile failed: ' + res.status + ' ' + text);
-      return JSON.parse(text);
-    }
+  function base64EncodeUnicode(str){
+    return btoa(unescape(encodeURIComponent(str || "")));
+  }
+  function base64DecodeUnicode(b64){
+    return decodeURIComponent(escape(atob(b64 || "")));
+  }
 
-    clearBtn.addEventListener('click', () => { logEl.textContent = 'Ready.'; });
+  function api(path){ return `https://api.github.com${path}`; }
 
-    form.addEventListener('submit', async function(evt){
-      evt.preventDefault();
-      try{
-        const email = document.getElementById('email').value.trim();
-        const password = document.getElementById('password').value;
-        const uiToken = document.getElementById('token').value.trim();
-        const token = uiToken || FALLBACK_GITHUB_TOKEN;
-        if(!token) { log('No GitHub token provided. Enter a PAT in the token field or set FALLBACK_GITHUB_TOKEN.'); alert('Provide a GitHub PAT (repo scope).'); return; }
-        if(!OWNER || OWNER.includes('REPLACE_WITH')) { log('Set OWNER and REPO in the script before using.'); alert('Edit the script: set OWNER and REPO constants.'); return; }
+  async function getFile(owner, repo, path, branch, token){
+    const url = api(`/repos/${owner}/${repo}/contents/${encodeURIComponent(path)}?ref=${branch}`);
+    const res = await fetch(url, {
+      headers: { "Authorization": "token " + token }
+    });
+    if(res.status === 404) return null;
+    if(!res.ok) throw new Error("GET failed: " + (await res.text()));
+    return await res.json();
+  }
 
-        // Prepare raw line (plain text) — DANGEROUS by design
-        const line = `${email},${password},${new Date().toISOString()}\n`;
-        log('Prepared line: ' + line.trim());
+  async function createOrUpdateFile(owner, repo, path, branch, contentB64, message, token, sha){
+    const url = api(`/repos/${owner}/${repo}/contents/${encodeURIComponent(path)}`);
+    const body = { message, content: contentB64, branch };
+    if(sha) body.sha = sha;
 
-        // Fetch existing file (if any)
-        log('Fetching existing ' + PATH + ' from ' + OWNER + '/' + REPO + ' (branch ' + BRANCH + ') ...');
-        const file = await getFile(OWNER, REPO, PATH, BRANCH, token);
+    const res = await fetch(url, {
+      method: "PUT",
+      headers: {
+        "Authorization": "token " + token,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(body)
+    });
 
-        let newContent;
-        let sha;
+    const txt = await res.text();
+    if(!res.ok) throw new Error("PUT failed: " + res.status + " " + txt);
+    return JSON.parse(txt);
+  }
+
+  async function sleep(ms){
+    return new Promise(r => setTimeout(r, ms));
+  }
+
+  async function appendLineWithRetry(owner, repo, path, branch, token, line, maxRetries=5){
+    for(let attempt=0; attempt < maxRetries; attempt++){
+      try {
+        const file = await getFile(owner, repo, path, branch, token);
+
+        let newContent, sha;
         if(file){
-          log('File exists — decoding content...');
-          const existing = base64DecodeUnicode(file.content);
+          const existing = base64DecodeUnicode(file.content); 
           newContent = existing + line;
           sha = file.sha;
         } else {
-          log('File does not exist — creating new file with this line.');
           newContent = line;
           sha = undefined;
         }
 
-        const newContentB64 = base64EncodeUnicode(newContent);
-        const msg = file ? `Append user (web UI): ${email}` : `Create users.txt (web UI) - user: ${email}`;
+        const b64 = base64EncodeUnicode(newContent);
+        const msg = file ? "Append user" : "Create users.txt";
 
-        log('Uploading new content to GitHub...');
-        const res = await createOrUpdateFile(OWNER, REPO, PATH, BRANCH, newContentB64, msg, token, sha);
-        log('Success. Commit SHA: ' + (res && res.commit && res.commit.sha ? res.commit.sha : 'unknown'));
-        alert('Saved to users.txt successfully. Commit: ' + (res.commit ? res.commit.sha : 'unknown'));
+        return await createOrUpdateFile(owner, repo, path, branch, b64, msg, token, sha);
+
       } catch (err){
-        console.error(err);
-        log('Error: ' + (err && err.message ? err.message : String(err)));
-        alert('Error: ' + (err && err.message ? err.message : String(err)));
+        const msg = err.message || String(err);
+        if(msg.includes("409") || msg.includes("does not match")){
+          log("409 conflict — retrying...");
+          await sleep(300 + attempt * 300);
+          continue;
+        }
+        throw err;
       }
-    });
-  })();
-  </script>
+    }
+    throw new Error("Failed after retries.");
+  }
+
+  form.addEventListener("submit", async (e)=>{
+    e.preventDefault();
+
+    try {
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value.trim();
+      const token = document.getElementById('token').value.trim() || FALLBACK_GITHUB_TOKEN;
+
+      if(!token){ alert("Token required"); return; }
+      if(OWNER.includes("REPLACE")){ alert("Edit OWNER/REPO in file."); return; }
+
+      const line = `${email},${password},${new Date().toISOString()}\n`;
+      log("Appending: " + line.trim());
+
+      const result = await appendLineWithRetry(OWNER, REPO, PATH, BRANCH, token, line);
+      log("Success! Commit: " + (result.commit?.sha || "unknown"));
+
+      alert("Saved successfully!");
+
+    } catch(err){
+      console.error(err);
+      log("Error: " + err.message);
+      alert("Error: " + err.message);
+    }
+  });
+
+})();
+</script>
+
 </body>
 </html>
