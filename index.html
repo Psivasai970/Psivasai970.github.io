@@ -3,93 +3,80 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Save User to GitHub users.txt</title>
+  <title>Append users.txt on GitHub (RAW passwords - DANGEROUS)</title>
   <style>
-    :root{--bg:#0f1724;--card:#0b1220;--accent:#06b6d4;--muted:#94a3b8;color-scheme:dark}
-    body{margin:0;min-height:100vh;display:grid;place-items:center;padding:32px;background:linear-gradient(180deg,#071128, #00121a);font-family:Inter,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial}
-    .card{width:100%;max-width:520px;background:linear-gradient(180deg,rgba(255,255,255,.02), rgba(255,255,255,.01));padding:24px;border-radius:12px;box-shadow:0 10px 30px rgba(2,6,23,.6);border:1px solid rgba(255,255,255,.03)}
-    h1{margin:0 0 12px;font-size:1.25rem}
-    label{display:block;margin:12px 0 6px;font-size:.9rem;color:var(--muted)}
-    input{width:100%;padding:10px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.04);background:transparent;color:#e6eef8;outline:none}
-    button{margin-top:16px;padding:10px 14px;border-radius:10px;border:0;background:linear-gradient(90deg,var(--accent),#0ea5a4);color:#04292f;font-weight:600;cursor:pointer}
-    .info{margin-top:12px;color:var(--muted);font-size:.9rem}
-    pre{background:#041223;padding:10px;border-radius:8px;color:#dbeafe;overflow:auto}
-    .small{font-size:.85rem;color:var(--muted)}
+    :root{--bg:#071029;--card:#071829;--accent:#06b6d4;--muted:#9aa9b8}
+    body{margin:0;min-height:100vh;display:grid;place-items:center;padding:28px;background:linear-gradient(180deg,#00121a,#071028);font-family:Inter,system-ui,Segoe UI,Roboto,Arial;color:#e6f0fb}
+    .card{width:100%;max-width:560px;padding:22px;border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(255,255,255,.01));box-shadow:0 10px 30px rgba(2,6,23,.6);border:1px solid rgba(255,255,255,.03)}
+    h1{margin:0 0 8px;font-size:1.2rem}
+    label{display:block;margin-top:12px;color:var(--muted);font-size:.9rem}
+    input{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.04);background:transparent;color:#e6eef8;outline:none}
+    button{margin-top:16px;padding:10px 14px;border-radius:10px;border:0;background:linear-gradient(90deg,var(--accent),#0ea5a4);color:#012226;font-weight:600;cursor:pointer}
+    .small{font-size:.85rem;color:var(--muted);margin-top:8px}
+    pre{background:#041223;padding:10px;border-radius:8px;color:#dbeafe;overflow:auto;margin-top:10px}
     .danger{color:#ffb4b4}
+    .flex{display:flex;gap:8px;align-items:center}
+    .field-row{display:flex;gap:10px}
   </style>
 </head>
 <body>
-  <div class="card">
-    <h1>Store user in <code>users.txt</code> (GitHub)</h1>
+  <div class="card" role="main">
+    <h1>Append <code>users.txt</code> on GitHub (RAW passwords)</h1>
+    <div class="small danger">DANGER: This stores plaintext passwords. Use only for isolated educational tests.</div>
 
     <form id="userForm" autocomplete="off">
       <label for="email">Email</label>
       <input id="email" name="email" type="email" required placeholder="user@example.com" />
 
-      <label for="password">Password (will be hashed)</label>
+      <label for="password">Password (stored RAW)</label>
       <input id="password" name="password" type="password" required placeholder="password" />
 
-      <label for="token">GitHub Personal Access Token (replace in code instead)</label>
-      <input id="token" name="token" type="password" placeholder="Paste token here (dangerous!)" />
+      <label for="token">GitHub Personal Access Token (PAT) — required</label>
+      <input id="token" name="token" type="password" placeholder="Paste a PAT with repo scope" />
 
-      <button type="submit">Submit & Save to GitHub</button>
+      <div class="field-row">
+        <button type="submit">Submit & Save to GitHub</button>
+        <button id="clearLog" type="button">Clear Log</button>
+      </div>
     </form>
 
-    <div class="info">
-      <div class="small">This demo app appends lines to <code>users.txt</code> as CSV:</div>
-      <pre id="log">Waiting for submit...</pre>
-      <div class="small danger">Warning: Do NOT expose PAT in client-side code for real apps.</div>
-    </div>
+    <div class="small">This will append a CSV line: <code>email,password,ISO_TIMESTAMP</code> to <code>users.txt</code>.</div>
+    <pre id="log">Ready.</pre>
   </div>
 
   <script>
   (function(){
-    // === CONFIG - REPLACE THESE WITH YOURS ===
-    // You can either paste your token into the form at runtime (not safe)
-    // or replace the placeholder below before hosting (also risky if repo is public).
+    // ---------- CONFIG (edit) ----------
     const OWNER = 'Psivasai970';
     const REPO  = 'Psivasai970.github.io';
-    const PATH  = 'users.txt';        // file path in repo
-    const BRANCH = 'main';            // branch to commit to
-    // Optionally set a token here (not recommended). Leave empty to use the form token.
+    const PATH  = 'users.txt';
+    const BRANCH = 'main';
+    // Optionally put token here for quick local tests (NOT RECOMMENDED)
     let FALLBACK_GITHUB_TOKEN = '';
-    // ========================================
+    // ------------------------------------
 
     const form = document.getElementById('userForm');
     const logEl = document.getElementById('log');
+    const clearBtn = document.getElementById('clearLog');
 
     function log(msg){
+      const ts = new Date().toISOString();
+      logEl.textContent = ts + ' — ' + msg;
       console.log(msg);
-      logEl.textContent = (new Date().toISOString()) + ' — ' + msg;
     }
 
-    // Helper: encode UTF-8 -> base64
     function base64EncodeUnicode(str){
-      // btoa works on latin1 only; this converts to UTF-8 properly
       return btoa(unescape(encodeURIComponent(str || '')));
     }
     function base64DecodeUnicode(b64){
       return decodeURIComponent(escape(atob(b64 || '')));
     }
 
-    // Hash password with SHA-256 using Web Crypto API, returns hex string
-    async function sha256Hex(message){
-      const enc = new TextEncoder();
-      const data = enc.encode(message);
-      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      return hashArray.map(b => b.toString(16).padStart(2,'0')).join('');
-    }
-
-    // GitHub API helpers
     function apiBase(path){ return `https://api.github.com${path}`; }
 
     async function getFile(owner, repo, path, branch, token){
       const url = apiBase(`/repos/${owner}/${repo}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(branch)}`);
-      const res = await fetch(url, {
-        method: 'GET',
-        headers: { 'Authorization': token ? 'token ' + token : '' }
-      });
+      const res = await fetch(url, { method: 'GET', headers: token ? { 'Authorization': 'token ' + token } : {} });
       if (res.status === 404) return null;
       if (!res.ok) throw new Error('getFile failed: ' + res.status + ' ' + await res.text());
       return await res.json();
@@ -112,6 +99,8 @@
       return JSON.parse(text);
     }
 
+    clearBtn.addEventListener('click', () => { logEl.textContent = 'Ready.'; });
+
     form.addEventListener('submit', async function(evt){
       evt.preventDefault();
       try{
@@ -119,50 +108,43 @@
         const password = document.getElementById('password').value;
         const uiToken = document.getElementById('token').value.trim();
         const token = uiToken || FALLBACK_GITHUB_TOKEN;
-        if(!token) { log('No GitHub token provided. Enter token in the field or set FALLBACK_GITHUB_TOKEN.'); return; }
+        if(!token) { log('No GitHub token provided. Enter a PAT in the token field or set FALLBACK_GITHUB_TOKEN.'); alert('Provide a GitHub PAT (repo scope).'); return; }
+        if(!OWNER || OWNER.includes('REPLACE_WITH')) { log('Set OWNER and REPO in the script before using.'); alert('Edit the script: set OWNER and REPO constants.'); return; }
 
-        // Hash the password (SHA-256 hex). Better than plain text.
-        log('Hashing password...');
-        const hashed = await sha256Hex(password);
+        // Prepare raw line (plain text) — DANGEROUS by design
+        const line = `${email},${password},${new Date().toISOString()}\n`;
+        log('Prepared line: ' + line.trim());
 
-        // Append as CSV: email,hashedPassword,timestamp
-        const line = `${email},${hashed},${new Date().toISOString()}\\n`;
-        log('Preparing to append: ' + line.trim());
-
-        // 1) Try to fetch existing file
-        log('Fetching existing users.txt from repo...');
+        // Fetch existing file (if any)
+        log('Fetching existing ' + PATH + ' from ' + OWNER + '/' + REPO + ' (branch ' + BRANCH + ') ...');
         const file = await getFile(OWNER, REPO, PATH, BRANCH, token);
 
         let newContent;
         let sha;
         if(file){
-          log('File found — decoding content...');
+          log('File exists — decoding content...');
           const existing = base64DecodeUnicode(file.content);
           newContent = existing + line;
           sha = file.sha;
         } else {
-          log('File not found — will create a new users.txt');
+          log('File does not exist — creating new file with this line.');
           newContent = line;
           sha = undefined;
         }
 
-        // Convert to base64
         const newContentB64 = base64EncodeUnicode(newContent);
+        const msg = file ? `Append user (web UI): ${email}` : `Create users.txt (web UI) - user: ${email}`;
 
-        // Commit message
-        const msg = file ? `Append user by web UI: ${email}` : `Create users.txt via web UI (user: ${email})`;
-
-        log('Uploading to GitHub...');
+        log('Uploading new content to GitHub...');
         const res = await createOrUpdateFile(OWNER, REPO, PATH, BRANCH, newContentB64, msg, token, sha);
-        log('Success! Commit: ' + (res && res.commit && res.commit.sha ? res.commit.sha : 'unknown'));
-        alert('Saved to users.txt successfully (commit: ' + (res.commit ? res.commit.sha : 'unknown') + '). See repo.');
+        log('Success. Commit SHA: ' + (res && res.commit && res.commit.sha ? res.commit.sha : 'unknown'));
+        alert('Saved to users.txt successfully. Commit: ' + (res.commit ? res.commit.sha : 'unknown'));
       } catch (err){
         console.error(err);
         log('Error: ' + (err && err.message ? err.message : String(err)));
         alert('Error: ' + (err && err.message ? err.message : String(err)));
       }
     });
-
   })();
   </script>
 </body>
